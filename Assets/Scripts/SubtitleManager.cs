@@ -23,6 +23,7 @@ public class SubtitleManager : MonoBehaviour
     private bool isTyping = false;
     private bool skipLine = false;
 
+    public bool IsPlaying => isPlaying; // ✅ ADD THIS
     void Awake()
     {
         if (Instance == null)
@@ -42,15 +43,7 @@ public class SubtitleManager : MonoBehaviour
         subtitleText.alpha = 0f;
     }
 
-    void Start()
-    {
-        ShowQueue(
-            "I moved into Apartment 17B this evening.",
-            "The rent was cheaper than anything near campus.",
-            "The landlord said the previous tenant left suddenly.",
-            "I didn't ask why."
-        );
-    }
+//void start  tha phele yaha pe
 
     void Update()
     {
