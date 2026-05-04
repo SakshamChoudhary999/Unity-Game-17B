@@ -139,7 +139,7 @@ public class TimeManager : MonoBehaviour
         CurrentPhase = GamePhase.SleepReady;
 
         // Show subtitle hint
-        SubtitleManager.Instance?.Show("I should get some sleep.", 4f);
+        SubtitleManager.Instance?.ShowQueue("I should get some sleep.");
 
         // Make bed interactable — guard against missing component
         if (bed != null)
@@ -173,7 +173,9 @@ public class TimeManager : MonoBehaviour
         // TODO: swap to disabling FirstPersonController + StarterAssetsInputs
         // components only — SetActive(false) on the whole GameObject can
         // break the AudioListener and Cinemachine camera target.
-        player?.SetActive(false);
+        var controller = player.GetComponent<StarterAssets.FirstPersonController>();
+        if (controller != null)
+            controller.enabled = false;
 
         // Fade to black
         yield return StartCoroutine(Fade(0f, 1f, sleepFadeDuration));
@@ -188,7 +190,8 @@ public class TimeManager : MonoBehaviour
         yield return StartCoroutine(Fade(1f, 0f, sleepFadeDuration));
 
         // TODO: match the above — re-enable components, not the whole GameObject.
-        player?.SetActive(true);
+        if (controller != null)
+            controller.enabled = true;
 
         // Phase stays as Sleeping — clock resumes from 3:12 AM.
         // At 3:17, CheckPhaseTransitions fires TriggerWakeUp(),
