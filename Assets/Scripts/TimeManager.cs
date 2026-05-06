@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 
 // ─────────────────────────────────────────────
@@ -25,8 +25,9 @@ public class TimeManager : MonoBehaviour
     public GamePhase CurrentPhase { get; private set; } = GamePhase.Exploration;
 
     // ── Inspector ─────────────────────────────
-    [Header("Game Clock (in-game minutes per real second)")]
-    public float timeScale = 60f;          // 1 real second = 1 in-game minute
+    [Header("Game Clock Speed")]
+    [Tooltip("How many in-game minutes pass per real second? (Default: 1)")]
+    public float timeScale = 1f;
 
     [Header("Phase Trigger Times (in-game 24h)")]
     public float sleepReadyHour = 23.5f; // 11:30 PM
@@ -42,6 +43,8 @@ public class TimeManager : MonoBehaviour
     [Header("Sleep Transition")]
     public float sleepFadeDuration = 2f;
     public float sleepHoldDuration = 3f;  // seconds of black screen
+    public bool isClockRunning = false;
+
 
     // ── Internal ──────────────────────────────
     private float _currentHour = 18.5f;   // start: 6:30 PM
@@ -66,6 +69,14 @@ public class TimeManager : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
+        // Auto-assign BlackScreen if missing in Inspector
+        if (blackScreen == null)
+        {
+            GameObject bsObj = GameObject.Find("BlackScreen");
+            if (bsObj != null)
+                blackScreen = bsObj.GetComponent<CanvasGroup>();
+        }
     }
 
     void Start()
@@ -81,20 +92,29 @@ public class TimeManager : MonoBehaviour
     {
         while (true)
         {
-            // Always advance — SleepSequence handles the clock jump internally.
-            // CheckPhaseTransitions must run during Sleeping so the horror
-            // condition (CurrentPhase == Sleeping && hour >= 3:17) can fire.
-            _currentHour += (Time.deltaTime / 60f) * timeScale;
+            if (isClockRunning)
+            {
+                // timeScale = 1 means 1 in-game minute per real second.
+                // 1 in-game minute = 1/60th of an hour.
+                _currentHour += (Time.deltaTime / 60f) * timeScale;
 
-            // Wrap past midnight:  24.0 → 0.0
-            if (_currentHour >= 24f)
-                _currentHour -= 24f;
+                // Wrap past midnight:  24.0 → 0.0
+                if (_currentHour >= 24f)
+                    _currentHour -= 24f;
 
-            CheckPhaseTransitions();
+                CheckPhaseTransitions();
+            }
 
             yield return null;
         }
     }
+
+    public void StartClock()
+    {
+        isClockRunning = true;
+        Debug.Log("[TimeManager] Clock started.");
+    }
+
 
     // ─────────────────────────────────────────
     //  PHASE CHECKS
@@ -170,12 +190,19 @@ public class TimeManager : MonoBehaviour
     // Sleep fade out → jump time → fade in at 3:12 AM
     IEnumerator SleepSequence()
     {
-        // TODO: swap to disabling FirstPersonController + StarterAssetsInputs
-        // components only — SetActive(false) on the whole GameObject can
-        // break the AudioListener and Cinemachine camera target.
+        // Disable inputs and camera control, but keep GameObject active for AudioListener
         var controller = player.GetComponent<StarterAssets.FirstPersonController>();
         if (controller != null)
             controller.enabled = false;
+        
+        var inputs = player.GetComponent<StarterAssets.StarterAssetsInputs>();
+        if (inputs != null)
+        {
+            inputs.move = Vector2.zero;
+            inputs.look = Vector2.zero;
+            inputs.cursorLocked = false;
+            inputs.cursorInputForLook = false;
+        }
 
         // Fade to black
         yield return StartCoroutine(Fade(0f, 1f, sleepFadeDuration));
@@ -189,9 +216,15 @@ public class TimeManager : MonoBehaviour
         // Fade back in
         yield return StartCoroutine(Fade(1f, 0f, sleepFadeDuration));
 
-        // TODO: match the above — re-enable components, not the whole GameObject.
+        // Re-enable inputs
         if (controller != null)
             controller.enabled = true;
+        
+        if (inputs != null)
+        {
+            inputs.cursorLocked = true;
+            inputs.cursorInputForLook = true;
+        }
 
         // Phase stays as Sleeping — clock resumes from 3:12 AM.
         // At 3:17, CheckPhaseTransitions fires TriggerWakeUp(),

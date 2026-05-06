@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 
 public class OpeningSequence : MonoBehaviour
@@ -23,8 +23,18 @@ public class OpeningSequence : MonoBehaviour
             return;
         }
 
-        // Disable player at start
-        player.SetActive(false);
+        // Disable player controls at start
+        var controller = player.GetComponent<StarterAssets.FirstPersonController>();
+        if (controller != null) controller.enabled = false;
+
+        var inputs = player.GetComponent<StarterAssets.StarterAssetsInputs>();
+        if (inputs != null)
+        {
+            inputs.move = Vector2.zero;
+            inputs.look = Vector2.zero;
+            inputs.cursorLocked = false;
+            inputs.cursorInputForLook = false;
+        }
 
         StartCoroutine(PlaySequence());
     }
@@ -44,10 +54,24 @@ public class OpeningSequence : MonoBehaviour
         yield return new WaitUntil(() => !SubtitleManager.Instance.IsPlaying);
 
         // Enable gameplay
-        player.SetActive(true);
+        var controller = player.GetComponent<StarterAssets.FirstPersonController>();
+        if (controller != null) controller.enabled = true;
 
-        // Disable this system
-        gameObject.SetActive(false);
+        var inputs = player.GetComponent<StarterAssets.StarterAssetsInputs>();
+        if (inputs != null)
+        {
+            inputs.cursorLocked = true;
+            inputs.cursorInputForLook = true;
+        }
+
+        // Start the game clock NOW that the monologue is over
+        if (TimeManager.Instance != null)
+        {
+            TimeManager.Instance.StartClock();
+        }
+
+        // Disable this script only (not the GameObject, because the child BlackScreen is needed later)
+        this.enabled = false;
     }
 
     IEnumerator Fade(float start, float end)
